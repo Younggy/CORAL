@@ -75,6 +75,7 @@ scripts/tmp_*/
 erdos_project/
 autoresearch/
 results/
+examples/optiver_rv/taskdata/
 test_claude_code/
 
 # OpenCode local installation and generated files

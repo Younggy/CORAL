@@ -1,0 +1,57 @@
+task:
+  name: Optiver RV native CORAL
+  description: |
+    Predict next-window realized volatility from the supplied Optiver book/trade data.
+    TRAIN labels are available. research_eval targets are private. Minimize global RMSPE.
+    Start from seed/features.py, seed/train.py and seed/config.json.
+    features.combine(book, trade) returns one row per time_id for one stock.
+    train.py accepts train-features, inference-features, config and output directory.
+    Produce predictions.csv with stock_id,time_id,prediction and retain the trained model.
+    You may edit the solution and add helper modules. Use TRAIN-only validation for development.
+    The grader performs a fresh fit. The fixed research split is not an OOS trading test.
+    Inputs: ${oc.env:HOME}/Projects/evalforge/tasks/optiver_rv/results/integration_spike/inputs
+    Python: ${oc.env:HOME}/Projects/evalforge/.evalforge/private/runtimes/optiver-open-v2/venv/bin/python
+grader:
+  entrypoint: optiver_coral_grader.grader:Grader
+  setup:
+    - uv pip install -e ./grader
+  direction: minimize
+  timeout: 1800
+  parallel:
+    max_workers: 1
+  private:
+    - taskdata
+  args:
+    inputs: ${oc.env:HOME}/Projects/evalforge/tasks/optiver_rv/results/integration_spike/inputs
+    worker_python: ${oc.env:HOME}/Projects/evalforge/.evalforge/private/runtimes/optiver-open-v2/venv/bin/python
+    threads: 8
+    rss_bytes: 17179869184
+    host_reserve_bytes: 4294967296
+    output_bytes: 1073741824
+agents:
+  assignments:
+    - runtime: codex
+      model: gpt-6-sol
+      count: 1
+      runtime_options:
+        model_reasoning_effort: high
+    - runtime: dsh
+      model: deepseek-chat
+      count: 1
+      runtime_options:
+        command: ${oc.env:HOME}/Projects/evalforge/.evalforge/private/runtimes/dsh/0.2.0-rc.2/node_modules/.bin/dsh
+  sandbox:
+    enabled: true
+    provider: srt
+    srt_command:
+      - ${oc.env:HOME}/Projects/evalforge/.evalforge/private/runtimes/coral-native-v013/sandbox/node_modules/.bin/srt
+    allow_read:
+      - ${oc.env:HOME}/Projects/evalforge/tasks/optiver_rv/results/integration_spike/inputs
+      - ${oc.env:HOME}/Projects/evalforge/.evalforge/private/runtimes/optiver-open-v2/venv
+      - ${oc.env:HOME}/Projects/evalforge/.evalforge/private/runtimes/dsh/0.2.0-rc.2/node_modules
+      - ${oc.env:HOME}/anaconda3
+workspace:
+  results_dir: ${oc.env:HOME}/Projects/CORAL/results/optiver_rv
+run:
+  session: tmux
+  ui: false

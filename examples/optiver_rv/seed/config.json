@@ -1,0 +1,47 @@
+{
+  "execution": {
+    "device": "cpu",
+    "model_artifact": "model.txt",
+    "seed": 20261004
+  },
+  "feature_windows_seconds": [
+    [
+      0,
+      600
+    ],
+    [
+      300,
+      600
+    ],
+    [
+      450,
+      600
+    ]
+  ],
+  "loss": "weighted_l2: train sample weights = target^-2 normalized by train mean weight",
+  "model": {
+    "colsample_bytree": 1.0,
+    "deterministic": true,
+    "force_col_wise": true,
+    "learning_rate": 0.05,
+    "max_depth": -1,
+    "min_child_samples": 100,
+    "n_estimators": 300,
+    "n_jobs": 2,
+    "num_leaves": 31,
+    "objective": "regression",
+    "random_state": 20261004,
+    "reg_lambda": 1.0,
+    "subsample": 1.0,
+    "verbosity": -1
+  },
+  "resource_limits": {
+    "parallel_training_workers": 1,
+    "rss_sampling_seconds": 0.2,
+    "rss_watchdog_bytes": 4294967296,
+    "single_output_file_bytes": 33554432,
+    "training_cpu_seconds": 300,
+    "training_wall_seconds": 600
+  },
+  "version": "baseline-fixed/v1"
+}
