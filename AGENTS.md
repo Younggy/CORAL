@@ -1,5 +1,9 @@
 # AGENTS.md — AI-assisted contributions to CORAL
 
+For the Younggy/CORAL fork, follow [FORK_WORKFLOW.md](FORK_WORKFLOW.md):
+develop on `feature`, promote validated changes to `develop`, and tag stable releases.
+The upstream `dev` PR rules below apply when contributing to the official repository.
+
 CORAL is itself infrastructure for running autonomous coding agents, so we
 fully expect contributors to use Claude Code, Codex, Cursor, Kiro, OpenCode,
 or other agents while developing changes. This document sets the ground rules.

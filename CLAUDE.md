@@ -1,5 +1,9 @@
 # CORAL
 
+For the Younggy/CORAL fork, follow [FORK_WORKFLOW.md](FORK_WORKFLOW.md):
+develop on `feature`, promote validated changes to `develop`, and tag stable releases.
+The upstream `dev` PR rules apply when contributing to the official repository.
+
 An orchestration system for **autonomous coding agents** — agents follow a CORAL.md guide, run experiments, share knowledge, and loop forever.
 
 ## Project Overview
