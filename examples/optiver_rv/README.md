@@ -51,6 +51,7 @@ python examples/optiver_rv/validate.py --output results/optiver_migration/valida
 ## 边界与已知限制
 
 - agent 隔离使用 CORAL 原生 SRT provider。评分时的候选进程另用任务级 Seatbelt，禁止读隐藏标签、fork 和网络连接。
+- DSH 内层使用 `permission_mode: danger-full-access`，由外层 SRT 保持文件隔离。此设置避免嵌套 macOS 沙箱失败，并允许写入本 run 的共享笔记。不要脱离外层 SRT 单独复用此权限配置。
 - 正式 grader 并发为 1。当前单次执行超时为 1,800 秒，内存 watchdog 为 16 GiB，主机余量为 4 GiB，输出上限为 1 GiB。
 - 资源配置以 `task.yaml` 为准。seed 保留的历史 `config.resource_limits` 不作为当前资源权限。
 - 线程库配置为 8；这是线程库设置，未承诺严格的全机 CPU 核数上限。内存和磁盘检查是采样检查。

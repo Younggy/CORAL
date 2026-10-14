@@ -95,6 +95,8 @@ def test_native_config_and_no_legacy_imports():
     assert config.grader.direction == "minimize"
     assert config.grader.parallel.max_workers == 1
     assert [a.runtime for a in config.agents.assignments] == ["codex", "dsh"]
+    assert config.agents.assignments[1].runtime_options["permission_mode"] == "danger-full-access"
+    assert config.agents.sandbox.enabled and config.agents.sandbox.provider == "srt"
     assert Path(config.workspace.results_dir) == ROOT / "results/optiver_rv"
     assert config.agents.research is True
     assert [h.name for h in config.agents.heartbeat] == [

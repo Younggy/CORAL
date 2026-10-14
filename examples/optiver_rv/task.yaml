@@ -40,6 +40,7 @@ agents:
       count: 1
       runtime_options:
         command: ${oc.env:HOME}/Projects/evalforge/.evalforge/private/runtimes/dsh/0.2.0-rc.2/node_modules/.bin/dsh
+        permission_mode: danger-full-access
   sandbox:
     enabled: true
     provider: srt
