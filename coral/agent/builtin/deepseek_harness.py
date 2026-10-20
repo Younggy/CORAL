@@ -31,6 +31,7 @@ _DEEPSEEK_HARNESS_RUNTIME_OPTION_KEYS = {
     "profile",
     "patch",
     "provider",
+    "reasoning_effort",
     "permission_mode",
     "tools_mode",
 }
@@ -106,6 +107,9 @@ class DeepSeekHarnessRuntime:
         for key in opts:
             if key not in _DEEPSEEK_HARNESS_RUNTIME_OPTION_KEYS:
                 logger.warning(f"Ignoring unsupported deepseek_harness runtime option: {key}")
+        reasoning_effort = opts.get("reasoning_effort")
+        if reasoning_effort is not None and reasoning_effort not in ("off", "low", "high", "max"):
+            raise ValueError("DSH reasoning_effort must be one of: off, low, high, max")
 
         command = str(opts.get("command") or "dsh")
         profile = str(opts.get("profile") or "headless")
@@ -119,7 +123,8 @@ class DeepSeekHarnessRuntime:
 
         # The headless CLI has no --model flag. A final Cordis overlay keeps
         # CORAL's agents.model contract authoritative over profile defaults and
-        # any user-supplied patches.
+        # any user-supplied patches. Cordis replaces this config, so effort must
+        # be emitted in the same final overlay.
         dsh_home = worktree_path / ".dsh"
         dsh_home.mkdir(parents=True, exist_ok=True)
         model_patch_path = dsh_home / "coral-model.patch.yml"
@@ -129,6 +134,11 @@ class DeepSeekHarnessRuntime:
             "  config:\n"
             f"    provider: {json.dumps(provider)}\n"
             f"    model: {json.dumps(model)}\n"
+            + (
+                f"    reasoningEffort: {json.dumps(reasoning_effort)}\n"
+                if reasoning_effort is not None
+                else ""
+            )
         )
         cmd.extend(["--patch", str(model_patch_path)])
         cmd.append(prompt)

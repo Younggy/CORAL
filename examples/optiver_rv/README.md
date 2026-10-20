@@ -1,7 +1,7 @@
 # Optiver RV on native CORAL
 
 本任务从 EvalForge v0.1.3（`0409503`）迁入，只适配 Optiver 数据与评测。
-CORAL 上游基准为 `0123dfb939b35228cf2c1fde224cd0561e727408`，核心源码不改。
+CORAL 上游基准为 `0123dfb939b35228cf2c1fde224cd0561e727408`；迁移时只适配任务，后续 v0.2.0 增加 Antigravity runtime。
 调度、分支、笔记、反思、停滞处理与候选记录均使用原版机制。
 适配器不导入 `evalforge`、旧 controller、family/frontier、审核或 run_boundary。
 
@@ -22,6 +22,45 @@ CORAL 上游基准为 `0123dfb939b35228cf2c1fde224cd0561e727408`，核心源码�
 准备和验证读取旧初始提交、隐藏标签及原始指标公式，不修改旧目录。
 本机依赖仍位于 `~/Projects/evalforge`，完成环境和数据迁移前不能删除或改名。
 本任务尚未做跨机器移植。新验证和未来运行产物保存在本 fork 的 `results/`。
+
+## 模型与本机 binding（v0.2.1）
+
+| Binding | Runtime | 模型 | 推理强度 |
+| --- | --- | --- | --- |
+| `codex-research` | `codex` | `gpt-6.1-sol` | `xhigh`（极高） |
+| `dsh-research` | `dsh` | `deepseek-flash` | `high` |
+| `gemini-research` | `antigravity` | `gemini-3.8-flash-high` | 由模型 ID 选择 High |
+
+`task.yaml` 使用前两项；`task.antigravity.yaml` 使用三项。两份任务配置直接记录模型与参数，
+无需读取本机 binding 即可解析。Binding 用于其他任务复用同一组选择。
+DSH 的 `runtime_options.reasoning_effort: high` 与模型名一起写入最后一层 model patch，
+映射到原生 `agent-default-model.reasoningEffort`，避免被模型配置覆盖。
+
+截至 2026-10-20，官方 [2026-10-17 更新记录](https://api-docs.deepseek.com/updates/)
+说明 `deepseek-flash` 对应 DeepSeek-V4.1-Flash-1017。它是服务端滚动别名，不是冻结版本 ID。
+本配置沿用 `deepseek-official` API provider；不修改 DSH Desktop 的账户登录设置。
+
+在仓库根目录保存本机 binding（只做配置与静态检查，不请求模型）：
+
+```sh
+.venv/bin/coral setup agent --non-interactive \
+  --name codex-research --runtime codex --model gpt-6.1-sol \
+  --option model_reasoning_effort=xhigh
+.venv/bin/coral setup agent --non-interactive \
+  --name dsh-research --runtime dsh --model deepseek-flash \
+  --command "$PWD/examples/optiver_rv/runtime/dsh" \
+  --option reasoning_effort=high
+.venv/bin/coral setup agent --non-interactive \
+  --name gemini-research --runtime antigravity --model gemini-3.8-flash-high \
+  --command "$HOME/.local/bin/agy" --option print_timeout=0s
+.venv/bin/coral agents doctor --no-live
+```
+
+配置保存在 `~/.config/coral/agents.yaml`，不含凭证，不提交 Git。
+新任务可在 `agents.assignments` 中使用 `binding: codex-research` 等名称。
+Binding 只包含执行器、模型和相关参数；任务仍需配置自己的沙箱、网络代理和预算。
+Optiver 在外层 SRT 内显式设置 DSH `permission_mode: danger-full-access`，
+此权限不放入跨任务 binding。
 
 ## 只验证，不启动研究
 

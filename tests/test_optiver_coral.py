@@ -95,7 +95,10 @@ def test_native_config_and_no_legacy_imports():
     assert config.grader.direction == "minimize"
     assert config.grader.parallel.max_workers == 1
     assert [a.runtime for a in config.agents.assignments] == ["codex", "dsh"]
+    assert [a.model for a in config.agents.assignments] == ["gpt-6.1-sol", "deepseek-flash"]
+    assert config.agents.assignments[0].runtime_options["model_reasoning_effort"] == "xhigh"
     assert config.agents.assignments[1].runtime_options["permission_mode"] == "danger-full-access"
+    assert config.agents.assignments[1].runtime_options["reasoning_effort"] == "high"
     command = Path(config.agents.assignments[1].runtime_options["command"])
     assert command == TASK / "runtime/dsh"
     assert command.stat().st_mode & 0o111

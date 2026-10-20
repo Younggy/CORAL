@@ -3,6 +3,8 @@
 本 fork 的首个固定版本是 `v0.1`，包含从 EvalForge 迁入的原生 Optiver RV 任务。
 本 fork 的上游基准为 `0123dfb939b35228cf2c1fde224cd0561e727408`。
 `v0.2.0` 在原生研究流程上增加 Antigravity CLI runtime。
+`v0.2.1` 更新 Optiver 模型配置与本机 binding 使用说明：Codex 6.1 Sol xhigh、
+DeepSeek Flash high、Gemini 3.8 Flash High。
 
 - `feature`：日常开发和快速迭代分支。
 - `develop`：验证通过后沉淀的稳定分支。

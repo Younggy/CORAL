@@ -3,15 +3,16 @@ preset: ./task.yaml
 agents:
   assignments:
     - runtime: codex
-      model: gpt-6-sol
+      model: gpt-6.1-sol
       count: 1
       runtime_options:
-        model_reasoning_effort: high
+        model_reasoning_effort: xhigh
     - runtime: dsh
-      model: deepseek-chat
+      model: deepseek-flash
       count: 1
       runtime_options:
         command: ${oc.env:HOME}/Projects/CORAL/examples/optiver_rv/runtime/dsh
+        reasoning_effort: high
         permission_mode: danger-full-access
     - runtime: antigravity
       model: gemini-3.8-flash-high

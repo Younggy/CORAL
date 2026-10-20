@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+import yaml
 
 from coral.agent.builtin.deepseek_harness import DeepSeekHarnessRuntime
 from coral.agent.registry import (
@@ -89,6 +90,7 @@ def test_start_builds_headless_command_and_environment(
     ]
     assert 'provider: "deepseek-official"' in model_patch.read_text()
     assert 'model: "deepseek-v4-flash"' in model_patch.read_text()
+    assert "reasoningEffort" not in model_patch.read_text()
     assert call["kwargs"]["cwd"] == str(worktree)
     env = call["kwargs"]["env"]
     assert env["DSH_HOME"] == str(worktree / ".dsh")
@@ -153,6 +155,45 @@ def test_restart_does_not_invent_unsupported_resume_flag(
     assert cmd[:3] == ["dsh", "--profile", "headless"]
     assert cmd[-1] == "continue"
     assert "--resume" not in cmd
+
+
+@pytest.mark.parametrize("effort", ["off", "low", "high", "max"])
+def test_effort_survives_final_model_overlay(monkeypatch, tmp_path, effort):
+    monkeypatch.setattr(subprocess, "Popen", _FakePopen)
+    worktree = _make_worktree(tmp_path)
+    handle = DeepSeekHarnessRuntime().start(
+        worktree_path=worktree,
+        coral_md_path=worktree / "AGENTS.md",
+        model="deepseek-flash",
+        runtime_options={"reasoning_effort": effort, "patch": ["earlier.yml"]},
+        prompt="offline",
+    )
+    overlay = worktree / ".dsh/coral-model.patch.yml"
+    assert _FakePopen.captured[0]["cmd"][-3:] == ["--patch", str(overlay), "offline"]
+    assert yaml.safe_load(overlay.read_text()) == [
+        {
+            "id": "agent-default-model",
+            "config": {
+                "provider": "deepseek-official",
+                "model": "deepseek-flash",
+                "reasoningEffort": effort,
+            },
+        }
+    ]
+    handle._log_file.close()
+
+
+@pytest.mark.parametrize("effort", ["xhigh", "", True])
+def test_invalid_effort_rejected_before_spawn(monkeypatch, tmp_path, effort):
+    monkeypatch.setattr(subprocess, "Popen", _FakePopen)
+    worktree = _make_worktree(tmp_path)
+    with pytest.raises(ValueError, match="reasoning_effort"):
+        DeepSeekHarnessRuntime().start(
+            worktree_path=worktree,
+            coral_md_path=worktree / "AGENTS.md",
+            runtime_options={"reasoning_effort": effort},
+        )
+    assert _FakePopen.captured == []
 
 
 def test_start_prepends_platform_aware_venv_bin_to_path(

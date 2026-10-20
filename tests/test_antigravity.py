@@ -197,6 +197,8 @@ def test_optiver_three_agent_config_preserves_grader_and_data():
     base = CoralConfig.from_yaml(task_dir / "task.yaml")
     cfg = CoralConfig.from_yaml(task_dir / "task.antigravity.yaml")
     assert [entry.runtime for entry in cfg.agents.assignments] == ["codex", "dsh", "antigravity"]
+    assert cfg.agents.assignments[:2] == base.agents.assignments
+    assert cfg.agents.assignments[2].model == "gemini-3.8-flash-high"
     assert cfg.grader == base.grader
     assert cfg.task == base.task
     assert cfg.workspace == base.workspace

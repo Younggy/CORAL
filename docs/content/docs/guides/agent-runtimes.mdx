@@ -93,10 +93,16 @@ agents:
     command: /usr/local/bin/dsh       # override binary path
     profile: headless                 # override the DSH profile
     provider: deepseek-official       # provider for agents.model
+    reasoning_effort: high            # off, low, high, or max
     patch: [./dsh.cordis.yml]         # repeatable --patch overlays
     permission_mode: workspace-write  # DSH_PERMISSION_MODE
     tools_mode: native                # DSH_TOOLS_MODE
 ```
+
+`reasoning_effort` is written as DSH's `reasoningEffort` alongside provider and
+model in the final overlay. Cordis replaces that config object, so setting the
+effort only in an earlier custom patch would be lost. Omitting the option keeps
+the previous behavior and uses the provider's default effort.
 
 > **Note:** The current DSH headless profile creates a fresh persisted session but does not expose its session ID or a resume argument. After a CORAL-managed restart, DSH starts a new session with a continuation prompt and recovers context from the worktree and shared `.dsh/` state.
 
