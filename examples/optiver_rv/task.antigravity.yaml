@@ -1,0 +1,26 @@
+# Opt-in three-agent configuration. Loading this file does not start a run.
+preset: ./task.yaml
+agents:
+  assignments:
+    - runtime: codex
+      model: gpt-6-sol
+      count: 1
+      runtime_options:
+        model_reasoning_effort: high
+    - runtime: dsh
+      model: deepseek-chat
+      count: 1
+      runtime_options:
+        command: ${oc.env:HOME}/Projects/CORAL/examples/optiver_rv/runtime/dsh
+        permission_mode: danger-full-access
+    - runtime: antigravity
+      model: gemini-3.8-flash-high
+      count: 1
+      runtime_options:
+        command: ${oc.env:HOME}/.local/bin/agy
+        print_timeout: 0s
+  sandbox:
+    extra_settings:
+      network:
+        # This host needs the existing local proxy to reach Google services.
+        httpProxyPort: 7890

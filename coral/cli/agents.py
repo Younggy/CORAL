@@ -635,6 +635,7 @@ _PING_PROMPT = "Reply with just the word: ok"
 # Per-runtime non-interactive invocation. None ⇒ runtime has no clean
 # non-interactive mode; ping is skipped with "not implemented".
 _RUNTIME_PING_CMD: dict[str, Callable[[str, str], list[str]]] = {
+    "antigravity": lambda cmd, model: [cmd, "--print", _PING_PROMPT, "--model", model],
     "claude_code": lambda cmd, model: [cmd, "-p", _PING_PROMPT, "--model", model],
     "codex": lambda cmd, _model: [cmd, "exec", _PING_PROMPT],
     "cursor_agent": lambda cmd, _model: [cmd, "--print", _PING_PROMPT],
@@ -657,7 +658,7 @@ def _try_ping(runtime: str, command: str, model: str, timeout: float) -> tuple[b
     if not command:
         return False, "no CLI command resolved"
     # Some runtimes embed the model in the command; missing model is fatal there.
-    needs_model = runtime in ("claude_code", "opencode")
+    needs_model = runtime in ("claude_code", "opencode", "antigravity")
     if needs_model and not model:
         return False, "no model configured for this binding"
 

@@ -127,6 +127,7 @@ def setup_git_exclude(worktree_path: Path) -> None:
         "CLAUDE.md",
         "AGENTS.md",
         ".claude/",
+        ".agents/",
         ".codex/",
         ".cursor/",
         ".opencode/",

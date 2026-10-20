@@ -218,6 +218,8 @@ def _runtime_home_paths(shared_dir_name: str) -> list[str]:
         paths += [str(home / ".claude.json"), str(home / ".claude.json.backup")]
     elif shared_dir_name == ".opencode":
         paths += [str(home / ".config" / "opencode"), str(home / ".opencode")]
+    elif shared_dir_name == ".agents":
+        paths += [str(home / ".gemini" / "antigravity-cli"), str(home / ".gemini" / "config")]
     return paths
 
 
@@ -380,6 +382,16 @@ def build_srt_settings(
     """
     private_dir = str((coral_dir / "private").resolve())
     home_paths = _runtime_home_paths(shared_dir_name)
+    macos_antigravity = shared_dir_name == ".agents" and sys.platform == "darwin"
+    # agy's keyring needs the default keychain file and its search-list preference.
+    auth_reads = (
+        [
+            str(Path.home() / "Library/Keychains/login.keychain-db"),
+            str(Path.home() / "Library/Preferences/com.apple.security.plist"),
+        ]
+        if macos_antigravity
+        else []
+    )
 
     settings: dict[str, Any] = {
         "network": {
@@ -397,6 +409,7 @@ def build_srt_settings(
                 *_run_dir_reads(worktree_path, coral_dir, repo_dir, sibling_worktrees or []),
                 *_coral_install_reads(),
                 *home_paths,
+                *auth_reads,
                 *cfg.allow_read,
             ],
             "allowWrite": [
@@ -418,6 +431,10 @@ def build_srt_settings(
         # Runtime CLIs allocate ptys for their shell tools (macOS-only knob).
         "allowPty": True,
     }
+
+    if macos_antigravity:
+        # Go's native TLS verification requires trustd; keep certificate checks enabled.
+        settings["network"]["allowMachLookup"] = ["com.apple.trustd.agent"]
 
     if cfg.network == "open":
         if proxy_port is None:

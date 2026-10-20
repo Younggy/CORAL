@@ -5,6 +5,7 @@ from __future__ import annotations
 import importlib
 import shutil
 
+from coral.agent.builtin.antigravity import AntigravityRuntime
 from coral.agent.builtin.claude_code import ClaudeCodeRuntime
 from coral.agent.builtin.codex import CodexRuntime
 from coral.agent.builtin.cursor_agent import CursorAgentRuntime
@@ -15,6 +16,7 @@ from coral.agent.builtin.pi_agent import PiAgentRuntime
 from coral.agent.runtime import AgentRuntime
 
 _RUNTIMES: dict[str, type] = {
+    "antigravity": AntigravityRuntime,
     "claude_code": ClaudeCodeRuntime,
     "codex": CodexRuntime,
     "cursor_agent": CursorAgentRuntime,
@@ -26,6 +28,8 @@ _RUNTIMES: dict[str, type] = {
 
 # Convenience aliases
 _ALIASES: dict[str, str] = {
+    "agy": "antigravity",
+    "ang": "antigravity",
     "claude": "claude_code",
     "claude-code": "claude_code",
     "openai": "codex",
@@ -42,6 +46,7 @@ _ALIASES: dict[str, str] = {
 
 # Default models per runtime (used when user doesn't specify --model)
 _DEFAULT_MODELS: dict[str, str] = {
+    "antigravity": "gemini-3.8-flash-high",
     "claude_code": "sonnet",
     "codex": "gpt-5.4",
     "cursor_agent": "auto",
@@ -55,6 +60,7 @@ _DEFAULT_MODELS: dict[str, str] = {
 # and `coral agents doctor` to detect/validate the installed CLI; not all
 # runtimes accept a custom command path at spawn time.
 _RUNTIME_COMMANDS: dict[str, str] = {
+    "antigravity": "agy",
     "claude_code": "claude",
     "codex": "codex",
     "cursor_agent": "cursor-agent",

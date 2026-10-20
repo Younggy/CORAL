@@ -1,6 +1,6 @@
 ---
 title: Agent Runtimes
-description: Configure DeepSeek Harness, OpenCode, Cursor Agent, and Kiro as CORAL agent runtimes.
+description: Configure Antigravity, DeepSeek Harness, OpenCode, Cursor Agent, and Kiro as CORAL agent runtimes.
 ---
 
 
@@ -10,10 +10,58 @@ CORAL works with any coding agent that can run as a subprocess. Pick the runtime
 |-----------------|--------------------------------|---------------------------|
 | Claude Code     | `claude_code` (default)        | Anthropic API key         |
 | Codex           | `codex`                        | OpenAI auth               |
+| Antigravity     | `antigravity` (aliases: `agy`, `ang`) | `agy` login once     |
 | DeepSeek Harness | `dsh`                         | `DEEPSEEK_API_KEY`        |
 | OpenCode        | `opencode`                     | `opencode.json` in seed   |
 | Cursor Agent    | `cursor` (alias: `cursor_agent`) | `cursor-agent login` once |
 | Kiro            | `kiro`                         | `kiro-cli` setup          |
+
+## Antigravity CLI
+
+Install [Antigravity CLI](https://www.antigravity.google/docs/cli/headless/),
+authenticate in an interactive `agy` session, and check the model IDs with
+`agy models`. CORAL uses the cached login; it does not route this runtime
+through the LiteLLM model gateway.
+
+```yaml
+agents:
+  runtime: antigravity
+  model: gemini-3.8-flash-high
+  runtime_options:
+    command: /path/to/agy  # optional when agy is on PATH
+    print_timeout: 0s     # CORAL owns the run budget; set a duration to cap a CLI invocation
+```
+
+The runtime runs `agy --print <prompt> --output-format stream-json --model <model>`.
+It reads `AGENTS.md`, discovers shared skills in `.agents/skills/`, and uses the
+same shared notes and `coral eval` workflow as the other runtimes. JSONL logs
+retain tool events and token usage. CORAL extracts `conversation_id` and resumes
+with `--conversation <id>`. A clean exit requires both exit code 0 and a terminal
+`SUCCESS` result; a long-running process or exit code 0 alone is insufficient.
+
+Supported runtime options are `command`, `effort`, and `print_timeout`, plus
+CORAL's shared `mounts` and `role_file` options. The CLI has no `max_turns` flag;
+nonzero `agents.max_turns` is rejected rather than silently ignored.
+
+As with Codex, CORAL disables interactive tool approvals and relies on the
+outer `agents.sandbox` or OS-user boundary for isolation. Enable that boundary
+before running tasks with private labels. The `.agents/` shared directory is
+excluded from attempt commits. SRT grants the Antigravity CLI's native state
+and shared configuration directories, while keeping `.coral/private/` denied.
+On macOS, SRT also grants read-only access to the default login keychain file
+and its search-list preference, plus the `com.apple.trustd.agent` service used
+by Go's TLS verification. Keychain writes stay denied and certificate checks
+remain enabled. A non-default keychain needs an explicit `sandbox.allow_read`
+entry. Authenticate for the selected OS user before using user isolation.
+
+On hosts that require an outbound proxy, inherit `HTTP_PROXY` / `HTTPS_PROXY`
+for an unsandboxed invocation. With SRT, configure its network proxy instead;
+the sandbox injects proxy variables for the entire process tree. The local
+Optiver example `examples/optiver_rv/task.antigravity.yaml` adds Gemini alongside
+the existing Codex and DSH assignments and selects this host's proxy port 7890.
+It inherits the existing task, grader, data split, and resource limits. The
+original `task.yaml` remains the two-agent configuration. A model turn reporting
+`SUCCESS` is not evidence that an experiment improved; use the grader results.
 
 ## DeepSeek Harness
 
