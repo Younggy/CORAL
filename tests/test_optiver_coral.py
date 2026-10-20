@@ -96,7 +96,14 @@ def test_native_config_and_no_legacy_imports():
     assert config.grader.parallel.max_workers == 1
     assert [a.runtime for a in config.agents.assignments] == ["codex", "dsh"]
     assert config.agents.assignments[1].runtime_options["permission_mode"] == "danger-full-access"
+    command = Path(config.agents.assignments[1].runtime_options["command"])
+    assert command == TASK / "runtime/dsh"
+    assert command.stat().st_mode & 0o111
+    assert str(TASK / "runtime") in config.agents.sandbox.allow_read
     assert config.agents.sandbox.enabled and config.agents.sandbox.provider == "srt"
+    assert config.agents.timeout == 0
+    assert config.run.stop.max_real_attempts is None
+    assert config.run.stop.score_threshold is None
     assert Path(config.workspace.results_dir) == ROOT / "results/optiver_rv"
     assert config.agents.research is True
     assert [h.name for h in config.agents.heartbeat] == [
@@ -108,6 +115,49 @@ def test_native_config_and_no_legacy_imports():
     for path in (TASK / "grader/src").rglob("*.py"):
         assert "from evalforge" not in path.read_text()
         assert "import evalforge" not in path.read_text()
+
+
+@pytest.mark.parametrize("silence_seconds", [1201, 36000])
+def test_optiver_quiet_live_agent_is_not_restarted(tmp_path, monkeypatch, silence_seconds):
+    import os
+    import time
+    from types import SimpleNamespace
+
+    from coral.agent.manager import AgentManager
+
+    log = tmp_path / "dsh.log"
+    log.write_text("DSH writes detailed tools to its session journal\n")
+    old = time.time() - silence_seconds
+    os.utime(log, (old, old))
+    manager = AgentManager(CoralConfig.from_yaml(TASK / "task.yaml"))
+    manager.paths = SimpleNamespace(coral_dir=tmp_path)
+    manager.handles = [SimpleNamespace(agent_id="captain-ahab", alive=True, log_path=log)]
+    manager._running = True
+    monkeypatch.setattr("coral.agent.manager.signal.signal", lambda *args: None)
+    monkeypatch.setattr(manager, "_get_seen_attempts", lambda: set())
+    monkeypatch.setattr(manager, "_maybe_run_migration_cycle", lambda: None)
+    monkeypatch.setattr(manager, "_grader_alive", lambda: False)
+    monkeypatch.setattr(manager._stop_event, "wait", lambda **kwargs: True)
+    monkeypatch.setattr(
+        manager,
+        "_interrupt_and_resume",
+        lambda *args, **kwargs: pytest.fail("live quiet agent restarted"),
+    )
+    manager.monitor_loop(check_interval=0)
+
+
+def test_optiver_does_not_stop_on_evaluation_count():
+    from coral.agent.manager import AgentManager
+
+    manager = AgentManager(CoralConfig.from_yaml(TASK / "task.yaml"))
+    for number in (8, 9, 100):
+        attempt = {
+            "commit_hash": f"{number:040x}",
+            "score": 0.1,
+            "metadata": {"budget_class": "real"},
+        }
+        assert manager._auto_stop_reason_from_attempt(attempt) is None
+    assert manager._auto_stop_reason_from_current_state() is None
 
 
 def test_failed_candidate_is_null_score(tmp_path, monkeypatch):

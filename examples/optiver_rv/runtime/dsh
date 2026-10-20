@@ -1,0 +1,5 @@
+#!/bin/sh
+set -eu
+runtime_dir="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+exec /opt/homebrew/bin/node --import "$runtime_dir/dsh-transport-log.mjs" \
+  "$HOME/Projects/evalforge/.evalforge/private/runtimes/dsh/0.2.0-rc.2/node_modules/@deepseek-ai/dsh/lib/bin.js" "$@"

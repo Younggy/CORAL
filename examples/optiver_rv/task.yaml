@@ -9,6 +9,8 @@ task:
     Produce predictions.csv with stock_id,time_id,prediction and retain the trained model.
     You may edit the solution and add helper modules. Use TRAIN-only validation for development.
     The grader performs a fresh fit. The fixed research split is not an OOS trading test.
+    Execution limits come from the task configuration: 8 threads, 16 GiB RSS,
+    and 1800 seconds per graded execution. Historical config.resource_limits is not enforced.
     Inputs: ${oc.env:HOME}/Projects/evalforge/tasks/optiver_rv/results/integration_spike/inputs
     Python: ${oc.env:HOME}/Projects/evalforge/.evalforge/private/runtimes/optiver-open-v2/venv/bin/python
 grader:
@@ -29,6 +31,7 @@ grader:
     host_reserve_bytes: 4294967296
     output_bytes: 1073741824
 agents:
+  timeout: 0  # DSH tool activity need not appear in its public stdout log.
   assignments:
     - runtime: codex
       model: gpt-6-sol
@@ -39,7 +42,7 @@ agents:
       model: deepseek-chat
       count: 1
       runtime_options:
-        command: ${oc.env:HOME}/Projects/evalforge/.evalforge/private/runtimes/dsh/0.2.0-rc.2/node_modules/.bin/dsh
+        command: ${oc.env:HOME}/Projects/CORAL/examples/optiver_rv/runtime/dsh
         permission_mode: danger-full-access
   sandbox:
     enabled: true
@@ -50,9 +53,13 @@ agents:
       - ${oc.env:HOME}/Projects/evalforge/tasks/optiver_rv/results/integration_spike/inputs
       - ${oc.env:HOME}/Projects/evalforge/.evalforge/private/runtimes/optiver-open-v2/venv
       - ${oc.env:HOME}/Projects/evalforge/.evalforge/private/runtimes/dsh/0.2.0-rc.2/node_modules
+      - ${oc.env:HOME}/Projects/CORAL/examples/optiver_rv/runtime
       - ${oc.env:HOME}/anaconda3
 workspace:
   results_dir: ${oc.env:HOME}/Projects/CORAL/results/optiver_rv
 run:
   session: tmux
   ui: false
+  stop:
+    max_real_attempts: null
+    score_threshold: null

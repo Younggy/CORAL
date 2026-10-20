@@ -52,11 +52,14 @@ python examples/optiver_rv/validate.py --output results/optiver_migration/valida
 
 - agent 隔离使用 CORAL 原生 SRT provider。评分时的候选进程另用任务级 Seatbelt，禁止读隐藏标签、fork 和网络连接。
 - DSH 内层使用 `permission_mode: danger-full-access`，由外层 SRT 保持文件隔离。此设置避免嵌套 macOS 沙箱失败，并允许写入本 run 的共享笔记。不要脱离外层 SRT 单独复用此权限配置。
+- DSH 通过 `runtime/dsh` 加载 Node 原生 HTTP 错误监听。仅对 `api.deepseek.com` 记录时间、标准错误类型/错误码、syscall 和 errno，写入原生 `diagnostics/<agent>/agent.err` 的 `[dsh-transport]` 行。不记录 message、stack、URL、请求头或正文；未识别的错误码记为 UNKNOWN。不改变重试、超时或停止规则，也不修改旧 runtime 和历史日志。
 - 正式 grader 并发为 1。当前单次执行超时为 1,800 秒，内存 watchdog 为 16 GiB，主机余量为 4 GiB，输出上限为 1 GiB。
 - 资源配置以 `task.yaml` 为准。seed 保留的历史 `config.resource_limits` 不作为当前资源权限。
 - 线程库配置为 8；这是线程库设置，未承诺严格的全机 CPU 核数上限。内存和磁盘检查是采样检查。
-- CORAL 原生 tune 默认执行同一完整评分；tune 不计入原生 real-attempt 停止计数。本任务没有添加另一套预算或搜索策略。
-- 任务保留原生 heartbeat 与 research 默认值，没有指定正式运行预算。本轮没有启动正式研究。
+- `agents.timeout: 0` 关闭按 stdout 静默时长重启 Agent 的 watchdog。DSH 的工具活动可能不出现在公开日志中，长时间无 stdout 不作为卡死证据。
+- `run.stop.max_real_attempts` 与 `score_threshold` 均为 null；不按评测次数或成绩提前终止。整次时限由运行时的截止监督器执行，启动前另行确认。
+- CORAL 原生 tune 执行同一完整评分；允许 Agent 在整次时间预算内使用，分别记录 real、tune、grader_error 与本地训练，不能用 real 次数代替全部消耗。
+- 原生 heartbeat、反思与 research 保留。正常反思交接与异常退出重启不同；后者由运行配置在首个异常退出后暂停，监督器停止整轮，不自动恢复。
 - 配置为 Codex、DSH 各一个原生 Agent。正式 grader 为单 worker；没有新增本地训练统一队列。
 - 原生 DSH headless 不支持会话 resume；其重启按原版行为开启新会话。本任务没有补写会话机制。
 - CPU LightGBM 起始方案已验证。MPS 分支保留原有初始化方式，本版未重新验证 MPS 或任意新模型。
