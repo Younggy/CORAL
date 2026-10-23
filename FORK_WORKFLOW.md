@@ -5,6 +5,8 @@
 `v0.2.0` 在原生研究流程上增加 Antigravity CLI runtime。
 `v0.2.1` 更新 Optiver 模型配置与本机 binding 使用说明：Codex 6.1 Sol xhigh、
 DeepSeek Flash high、Gemini 3.8 Flash High。
+`v0.2.2` 修复 heartbeat 的停滞提醒冷却：同一 Agent 复用 runner，避免每次评测重复提醒。
+heartbeat 有效配置变化时重新创建 runner；冷却状态仍只保存在 manager 进程内。
 
 - `feature`：日常开发和快速迭代分支。
 - `develop`：验证通过后沉淀的稳定分支。

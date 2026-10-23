@@ -144,6 +144,7 @@ class AgentManager:
         # heartbeat action sees is computed from this history with the
         # action's own ``epsilon`` (see coral.agent.heartbeat).
         self._agent_score_history: dict[str, list[float | None]] = {}
+        self._heartbeat_runners: dict[str, HeartbeatRunner] = {}
         # Reliability state. `_started_at` records when each agent's current
         # subprocess began running (epoch seconds), used as the uptime input
         # for the runtime exit classifier. `_crash_history` is the sliding
@@ -1416,7 +1417,7 @@ class AgentManager:
         self.stop_all()
 
     def _get_heartbeat_runner(self, agent_id: str) -> HeartbeatRunner:
-        """Build a HeartbeatRunner by merging local + global heartbeat configs."""
+        """Reuse cooldown state until the merged heartbeat configuration changes."""
         from coral.agent.heartbeat import HeartbeatAction
 
         if self.paths is None:
@@ -1464,7 +1465,11 @@ class AgentManager:
                     options=dict(ad.get("options") or {}),
                 )
             )
-        return HeartbeatRunner(heartbeat_actions)
+        runner = self._heartbeat_runners.get(agent_id)
+        if runner is None or runner.actions != heartbeat_actions:
+            runner = HeartbeatRunner(heartbeat_actions)
+            self._heartbeat_runners[agent_id] = runner
+        return runner
 
     def _is_paused(self, agent_id: str) -> bool:
         """Return True if the agent is currently in PAUSED state.
