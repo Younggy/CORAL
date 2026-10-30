@@ -105,8 +105,8 @@ export default function Logs() {
   return (
     <>
       {/* LEFT COLUMN — Agent list + per-agent attempts */}
-      <div className="overflow-y-auto border-r border-border p-5">
-        <p className="font-mono text-[10px] tracking-widest uppercase text-muted-fg mb-3">
+      <div className="workspace-panel logs-agents">
+        <p className="section-title mb-3">
           Agents
         </p>
 
@@ -121,9 +121,10 @@ export default function Logs() {
                 <button
                   key={id}
                   onClick={() => setSelectedAgent(id)}
-                  className={`w-full text-left p-4 rounded-lg transition-colors duration-100 border ${
+                  aria-pressed={isSelected}
+                  className={`log-agent w-full text-left p-4 rounded-lg transition-colors duration-100 border ${
                     isSelected
-                      ? "bg-foreground text-background border-foreground"
+                      ? "border-accent"
                       : "border-border hover:bg-muted/50"
                   }`}
                 >
@@ -135,9 +136,7 @@ export default function Logs() {
                   </div>
                   {agent && (
                     <div
-                      className={`font-mono text-[11px] grid grid-cols-2 gap-y-1 gap-x-4 ${
-                        isSelected ? "text-background/60" : "text-muted-fg"
-                      }`}
+                      className="font-mono text-[11px] grid grid-cols-2 gap-y-1 gap-x-4 text-muted-fg"
                     >
                       <span>{agent.attempts} attempts</span>
                       <span>{agent.sessions} sessions</span>
@@ -166,7 +165,7 @@ export default function Logs() {
         {/* Per-agent recent attempts */}
         {selectedAgent && agentAttempts.length > 0 && (
           <div className="mt-6">
-            <p className="font-mono text-[10px] tracking-widest uppercase text-muted-fg mb-3">
+            <p className="section-title mb-3">
               Recent Attempts
             </p>
             <div className="border border-border rounded-xl overflow-hidden">
@@ -190,7 +189,7 @@ export default function Logs() {
       </div>
 
       {/* RIGHT COLUMN — Log content */}
-      <div ref={logPanelRef} className="overflow-y-auto p-5">
+      <div ref={logPanelRef} className="workspace-panel logs-reader">
         {!selectedAgent ? (
           <p className="font-mono text-xs text-muted-fg py-6">
             Select an agent to view logs.
@@ -202,7 +201,7 @@ export default function Logs() {
         ) : (
           <>
             {/* Stats bar */}
-            <div className="flex items-center gap-4 mb-4 font-mono text-[11px] text-muted-fg flex-wrap">
+            <div className="log-stats flex items-center gap-4 mb-4 font-mono text-[11px] text-muted-fg flex-wrap">
               <span>{logData.turns.length} turns</span>
               <span>{logData.sessions?.length ?? 1} session{(logData.sessions?.length ?? 1) !== 1 ? "s" : ""}</span>
               {logData.agent_meta ? (
@@ -281,7 +280,8 @@ function SessionBlock({
     <div className="mb-1.5">
       <button
         onClick={() => setCollapsed(!collapsed)}
-        className="w-full flex items-center gap-2 py-2 px-3 bg-foreground text-background font-mono text-[11px] tracking-widest uppercase hover:opacity-90 transition-opacity rounded-t-lg"
+        aria-expanded={!collapsed}
+        className="w-full flex items-center gap-2 py-3 px-3 bg-muted text-foreground border border-border font-body text-[13px] font-medium hover:bg-muted/70 transition-colors rounded-lg"
       >
         <span>
           Session {session.session_index + 1}
@@ -339,12 +339,12 @@ function TurnCard({ turn }: { turn: LogTurn }) {
                 </button>
               </div>
               {expandThinking && (
-                <pre className="mt-1.5 font-mono text-[11px] text-muted-fg leading-relaxed whitespace-pre-wrap max-h-80 overflow-y-auto">
+                <pre className="mt-1.5 font-mono text-[12px] text-muted-fg leading-relaxed whitespace-pre-wrap max-h-80 overflow-y-auto">
                   {entry.content}
                 </pre>
               )}
               {!expandThinking && (
-                <p className="mt-0.5 font-mono text-[11px] text-muted-fg truncate opacity-50">
+                <p className="mt-0.5 font-mono text-[11px] text-muted-fg truncate">
                   {entry.content.split("\n")[0]}
                 </p>
               )}
@@ -482,7 +482,7 @@ function ToolResult({ content }: { content: string }) {
         )}
       </div>
       <pre
-        className={`mt-0.5 font-mono text-[11px] text-muted-fg leading-relaxed whitespace-pre-wrap ${
+        className={`mt-0.5 font-mono text-[12px] text-muted-fg leading-relaxed whitespace-pre-wrap ${
           !expanded && isLong ? "max-h-20 overflow-hidden" : ""
         }`}
       >

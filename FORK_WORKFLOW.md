@@ -7,6 +7,8 @@
 DeepSeek Flash high、Gemini 3.8 Flash High。
 `v0.2.2` 修复 heartbeat 的停滞提醒冷却：同一 Agent 复用 runner，避免每次评测重复提醒。
 heartbeat 有效配置变化时重新创建 runner；冷却状态仍只保存在 manager 进程内。
+`v0.2.3` 更新 Dashboard 布局与知识图谱：宽幅画布、连接层级、标题避让、完整聚焦标题及拖动/缩放交互。
+原始笔记、关系、API 和研究逻辑保持不变；发布前使用真实任务图谱验证。
 
 - `feature`：日常开发和快速迭代分支。
 - `develop`：验证通过后沉淀的稳定分支。

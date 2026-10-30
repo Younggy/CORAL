@@ -136,11 +136,11 @@ export default function Overview() {
   return (
     <>
       {/* LEFT COLUMN */}
-      <div className="overflow-y-auto border-r border-border p-5">
+      <div className="workspace-panel overview-main">
         {/* Score chart — always shown */}
         <div className="mb-5">
-          <div className="border border-border rounded-xl p-4 relative">
-            <div className="absolute top-2.5 right-2.5 flex items-center gap-1 z-10">
+          <div className="overview-section chart-panel">
+            <div className="chart-actions">
               {!replay.active && attempts.length > 0 && (
                 <button
                   onClick={replay.start}
@@ -162,9 +162,10 @@ export default function Overview() {
                 </svg>
               </button>
             </div>
+            <p className="section-title chart-heading">Score progression</p>
             <ScoreChart
               attempts={displayAttempts}
-              height={200}
+              height={260}
               direction={direction}
               animationDuration={replay.active ? 200 : undefined}
             />
@@ -180,9 +181,9 @@ export default function Overview() {
         )}
 
         {/* Leaderboard */}
-        <div className="mb-6">
+        <div className="overview-section mb-5">
           <div className="flex items-baseline justify-between mb-3">
-            <p className="font-mono text-[10px] tracking-widest uppercase text-muted-fg">
+            <p className="section-title">
               Attempts
             </p>
             <p className="font-mono text-[11px] text-muted-fg">
@@ -190,7 +191,7 @@ export default function Overview() {
             </p>
           </div>
 
-          <div className="border border-border rounded-xl overflow-hidden">
+          <div className="attempt-table">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-border bg-muted/50">
@@ -246,7 +247,7 @@ export default function Overview() {
             {allSorted.length > 5 && (
               <button
                 onClick={() => setTableExpanded(!tableExpanded)}
-                className="w-full py-2 font-mono text-[10px] tracking-widest uppercase text-muted-fg hover:text-foreground hover:bg-muted/50 transition-colors duration-100 border-t border-border"
+                className="w-full py-2 section-title hover:text-foreground hover:bg-muted/50 transition-colors duration-100 border-t border-border"
               >
                 {tableExpanded
                   ? "Show less"
@@ -259,8 +260,8 @@ export default function Overview() {
         {!replay.active && (
           <>
             {/* Notes */}
-            <div className="mb-6">
-              <p className="font-mono text-[10px] tracking-widest uppercase text-muted-fg mb-3">
+            <div className="overview-section mb-5">
+              <p className="section-title mb-3">
                 Notes ({notes.length})
               </p>
               {notes.length === 0 ? (
@@ -308,8 +309,8 @@ export default function Overview() {
             </div>
 
             {/* Skills */}
-            <div>
-              <p className="font-mono text-[10px] tracking-widest uppercase text-muted-fg mb-3">
+            <div className="overview-section">
+              <p className="section-title mb-3">
                 Skills ({skills.length})
               </p>
               {skills.length === 0 ? (
@@ -339,13 +340,13 @@ export default function Overview() {
       </div>
 
       {/* RIGHT COLUMN */}
-      <div className="overflow-y-auto p-5 space-y-6">
+      <div className="workspace-panel overview-aside space-y-6">
         {replay.active ? (
           <>
             {/* Replay: Agent cards derived from visible attempts */}
             {replayAgents.length > 0 && (
               <div>
-                <p className="font-mono text-[10px] tracking-widest uppercase text-muted-fg mb-3">
+                <p className="section-title mb-3">
                   Agents
                 </p>
                 <div className="space-y-2">
@@ -378,7 +379,7 @@ export default function Overview() {
             {/* Replay: Recent attempts per agent */}
             {replayAgents.length > 0 && (
               <div>
-                <p className="font-mono text-[10px] tracking-widest uppercase text-muted-fg mb-3">
+                <p className="section-title mb-3">
                   Recent Activity
                 </p>
                 <div className="space-y-3">
@@ -422,7 +423,7 @@ export default function Overview() {
             {/* Agent cards */}
             {status && status.agents.length > 0 && (
               <div>
-                <p className="font-mono text-[10px] tracking-widest uppercase text-muted-fg mb-3">
+                <p className="section-title mb-3">
                   Agents
                 </p>
                 <div className="space-y-2">
@@ -473,7 +474,7 @@ export default function Overview() {
             {/* Recent Agent Logs — last 3 entries per agent */}
             {status && status.agents.length > 0 && (
               <div>
-                <p className="font-mono text-[10px] tracking-widest uppercase text-muted-fg mb-3">
+                <p className="section-title mb-3">
                   Recent Activity
                 </p>
                 <div className="space-y-3">
@@ -547,7 +548,7 @@ function Th({
 }) {
   return (
     <th
-      className={`py-2 px-3 text-left font-mono text-[10px] tracking-widest uppercase ${
+      className={`py-3 px-3 text-left font-body text-xs font-medium ${
         onClick ? "cursor-pointer hover:bg-muted select-none" : ""
       } ${active ? "text-foreground" : "text-muted-fg"}`}
       onClick={onClick}

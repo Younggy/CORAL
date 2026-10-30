@@ -98,8 +98,8 @@ export default function Dag() {
   const running = Boolean(status?.manager_alive);
 
   return (
-    <div className="col-span-2 flex min-h-0">
-      <div className="flex-1 min-w-0 p-4">
+    <div className="lineage-workspace">
+      <div className="lineage-canvas">
         <LineageCanvas
           data={data}
           selectedHash={selected}
@@ -107,7 +107,7 @@ export default function Dag() {
         />
       </div>
 
-      <aside className="w-80 shrink-0 border-l border-border p-5 overflow-y-auto">
+      <aside className="workspace-panel lineage-detail">
         {steering.pending_count > 0 && (
           <div className="mb-4 border border-border rounded-lg bg-muted/50 px-3 py-2 text-xs">
             <div className="font-mono text-[10px] uppercase tracking-wider text-muted-fg">

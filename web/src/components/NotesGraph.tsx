@@ -1,370 +1,247 @@
-import { useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { PointerEvent as ReactPointerEvent } from "react";
 import type { NoteGraphNode, NoteGraphEdge } from "../lib/api";
+import { layoutNotes, placeLabels } from "../lib/notesGraphLayout";
+import type { GraphLabel } from "../lib/notesGraphLayout";
 
-/* Status → node fill (Tailwind utility classes on SVG, mirroring Dag.tsx). */
-const STATUS_FILL: Record<string, string> = {
-  confirmed: "fill-green-500",
-  refuted: "fill-red-500",
-  untested: "fill-blue-500",
+interface Point { x: number; y: number }
+const EDGE_STYLE = {
+  references: { color: "var(--graph-reference)", dash: undefined },
+  supersedes: { color: "var(--graph-supersedes)", dash: "5 4" },
+  refutes: { color: "var(--graph-refutes)", dash: undefined },
 };
 
-/* Edge kind → stroke / arrowhead / dash. Edges are directed (from → to). */
-const EDGE_STYLE: Record<
-  string,
-  { stroke: string; arrow: string; marker: string; dash?: string }
-> = {
-  supersedes: { stroke: "stroke-amber-500", arrow: "fill-amber-500", marker: "ng-arw-sup", dash: "7 5" },
-  refutes: { stroke: "stroke-red-500", arrow: "fill-red-500", marker: "ng-arw-rfu" },
-  references: { stroke: "stroke-border-strong", arrow: "fill-border-strong", marker: "ng-arw-rfc", dash: "1 6" },
-};
-
-const VW = 1100;
-const VH = 640;
-const PAD = 44;
-const LABEL_W = 150; // reserve room on the right so labels don't clip
-
-interface Placed {
-  id: string;
-  x: number;
-  y: number;
+function radius(node: NoteGraphNode): number {
+  const confidence = node.confidence;
+  if (typeof confidence === "number") return confidence < 0.4 ? 4 : confidence < 0.7 ? 6 : 8;
+  return confidence === "high" ? 8 : confidence === "medium" ? 6 : confidence === "low" ? 4 : 5;
 }
 
-/** Force-lay out a single connected component; returns local positions + size. */
-function forceComponent(
-  ids: string[],
-  links: [number, number][],
-): { pts: { id: string; x: number; y: number }[]; w: number; h: number } {
-  const n = ids.length;
-  if (n === 1) return { pts: [{ id: ids[0], x: 0, y: 0 }], w: 0, h: 0 };
-
-  const R = 240;
-  const pts = ids.map((id, i) => {
-    const a = (2 * Math.PI * i) / n;
-    return { id, x: Math.cos(a) * R, y: Math.sin(a) * R, vx: 0, vy: 0 };
-  });
-  const k = Math.max(110, R / Math.sqrt(n)) * 1.7; // ideal edge length
-  const ITER = 400;
-
-  for (let it = 0; it < ITER; it++) {
-    const cool = 1 - it / ITER;
-    for (let i = 0; i < n; i++) {
-      pts[i].vx = 0;
-      pts[i].vy = 0;
-    }
-    for (let i = 0; i < n; i++) {
-      for (let j = i + 1; j < n; j++) {
-        const dx = pts[i].x - pts[j].x;
-        const dy = pts[i].y - pts[j].y;
-        const d = Math.hypot(dx, dy) || 0.01;
-        const rep = (k * k) / d;
-        pts[i].vx += (dx / d) * rep;
-        pts[i].vy += (dy / d) * rep;
-        pts[j].vx -= (dx / d) * rep;
-        pts[j].vy -= (dy / d) * rep;
-      }
-    }
-    for (const [a, b] of links) {
-      const dx = pts[a].x - pts[b].x;
-      const dy = pts[a].y - pts[b].y;
-      const d = Math.hypot(dx, dy) || 0.01;
-      const att = (d * d) / k;
-      pts[a].vx -= (dx / d) * att;
-      pts[a].vy -= (dy / d) * att;
-      pts[b].vx += (dx / d) * att;
-      pts[b].vy += (dy / d) * att;
-    }
-    const maxStep = 30 * cool + 1;
-    for (let i = 0; i < n; i++) {
-      const sp = Math.hypot(pts[i].vx, pts[i].vy) || 0.01;
-      const step = Math.min(sp, maxStep);
-      pts[i].x += (pts[i].vx / sp) * step;
-      pts[i].y += (pts[i].vy / sp) * step;
-    }
-  }
-
-  const xs = pts.map((p) => p.x);
-  const ys = pts.map((p) => p.y);
-  const minX = Math.min(...xs);
-  const minY = Math.min(...ys);
-  for (const p of pts) {
-    p.x -= minX;
-    p.y -= minY;
-  }
-  return {
-    pts: pts.map((p) => ({ id: p.id, x: p.x, y: p.y })),
-    w: Math.max(...xs) - minX,
-    h: Math.max(...ys) - minY,
-  };
-}
-
-/**
- * Deterministic component-aware layout. Each connected component is force-laid
- * out on its own (so a disconnected cluster can't fling itself across the canvas
- * and crush everything else), then components are packed row-major and the whole
- * thing is fit to the viewBox. Seeded by index — no randomness, stable across
- * refreshes.
- */
-function layout(nodes: NoteGraphNode[], edges: NoteGraphEdge[]): Map<string, Placed> {
-  const out = new Map<string, Placed>();
-  const N = nodes.length;
-  if (N === 0) return out;
-
-  const idx = new Map(nodes.map((n, i) => [n.id, i]));
-
-  // union-find → connected components (undirected)
-  const par = nodes.map((_, i) => i);
-  const find = (x: number): number => {
-    while (par[x] !== x) {
-      par[x] = par[par[x]];
-      x = par[x];
-    }
-    return x;
-  };
-  const elinks: [number, number][] = [];
-  for (const e of edges) {
-    const a = idx.get(e.from);
-    const b = idx.get(e.to);
-    if (a != null && b != null) {
-      elinks.push([a, b]);
-      par[find(a)] = find(b);
-    }
-  }
-  const groups = new Map<number, number[]>();
-  for (let i = 0; i < N; i++) {
-    const r = find(i);
-    const g = groups.get(r);
-    if (g) g.push(i);
-    else groups.set(r, [i]);
-  }
-
-  // lay out each component independently
-  const comps = [...groups.values()].map((members) => {
-    const local = new Map(members.map((gi, li) => [gi, li]));
-    const ids = members.map((gi) => nodes[gi].id);
-    const links = elinks
-      .filter(([a, b]) => local.has(a) && local.has(b))
-      .map(([a, b]) => [local.get(a)!, local.get(b)!] as [number, number]);
-    return forceComponent(ids, links);
-  });
-
-  // pack components row-major within a target row width
-  comps.sort((a, b) => b.w * b.h - a.w * a.h);
-  const totalArea = comps.reduce((s, c) => s + Math.max(c.w, 60) * Math.max(c.h, 60), 1);
-  const targetRow = Math.sqrt(totalArea) * 1.7;
-  const GAP = 90;
-  let cx = 0;
-  let cy = 0;
-  let rowH = 0;
-  for (const c of comps) {
-    const w = Math.max(c.w, 30);
-    const h = Math.max(c.h, 30);
-    if (cx > 0 && cx + w > targetRow) {
-      cx = 0;
-      cy += rowH + GAP;
-      rowH = 0;
-    }
-    for (const p of c.pts) out.set(p.id, { id: p.id, x: cx + p.x, y: cy + p.y });
-    cx += w + GAP;
-    rowH = Math.max(rowH, h);
-  }
-
-  // fit to the padded viewBox (reserve LABEL_W on the right for node labels)
-  const placed = [...out.values()];
-  const xs = placed.map((p) => p.x);
-  const ys = placed.map((p) => p.y);
-  const minX = Math.min(...xs);
-  const maxX = Math.max(...xs);
-  const minY = Math.min(...ys);
-  const maxY = Math.max(...ys);
-  const sx = (VW - PAD - LABEL_W) / (maxX - minX || 1);
-  const sy = (VH - 2 * PAD) / (maxY - minY || 1);
-  const s = Math.min(sx, sy);
-  for (const p of placed) {
-    out.set(p.id, { id: p.id, x: PAD + (p.x - minX) * s, y: PAD + (p.y - minY) * s });
-  }
-  return out;
-}
-
-/* Confidence is a 3-level enum (low | medium | high); pixel radius is a
- * pure presentation concern. Legacy notes written under the old float
- * schema still render at a sensible size via a one-shot bucketing. */
-const CONFIDENCE_RADIUS: Record<string, number> = {
-  low: 6,
-  medium: 8,
-  high: 11,
-};
-
-function radius(n: NoteGraphNode): number {
-  const c = n.confidence;
-  if (typeof c === "string" && c in CONFIDENCE_RADIUS) {
-    return CONFIDENCE_RADIUS[c];
-  }
-  if (typeof c === "number") {
-    if (c < 0.4) return CONFIDENCE_RADIUS.low;
-    if (c < 0.7) return CONFIDENCE_RADIUS.medium;
-    return CONFIDENCE_RADIUS.high;
-  }
-  return 7; // no confidence stated — neutral mid size
-}
-
-/** Gentle quadratic-bezier arc between two node boundaries, leaving room for
- *  the arrowhead at the target end. */
-function edgePath(a: Placed, b: Placed, ra: number, rb: number): string {
+function edgePath(a: Point, b: Point, targetRadius: number): string {
   const dx = b.x - a.x;
   const dy = b.y - a.y;
-  const d = Math.hypot(dx, dy) || 1;
-  const ux = dx / d;
-  const uy = dy / d;
-  const sx = a.x + ux * (ra + 2);
-  const sy = a.y + uy * (ra + 2);
-  const tx = b.x - ux * (rb + 8);
-  const ty = b.y - uy * (rb + 8);
-  const curve = Math.min(38, d * 0.12);
-  const cx = (sx + tx) / 2 - uy * curve;
-  const cy = (sy + ty) / 2 + ux * curve;
-  return `M${sx.toFixed(1)},${sy.toFixed(1)} Q${cx.toFixed(1)},${cy.toFixed(1)} ${tx.toFixed(1)},${ty.toFixed(1)}`;
+  const distance = Math.hypot(dx, dy) || 1;
+  const end = { x: b.x - dx / distance * (targetRadius + 5), y: b.y - dy / distance * (targetRadius + 5) };
+  const curve = Math.min(22, distance * 0.08);
+  return `M${a.x},${a.y} Q${(a.x + end.x) / 2 - dy / distance * curve},${(a.y + end.y) / 2 + dx / distance * curve} ${end.x},${end.y}`;
 }
 
-export default function NotesGraph({
-  nodes,
-  edges,
-  selected,
-  onSelect,
-}: {
+function labelLeader(point: Point, label: GraphLabel): string {
+  const x = Math.max(label.x, Math.min(label.x + label.width, point.x));
+  const y = Math.max(label.y, Math.min(label.y + label.height, point.y));
+  const distance = Math.hypot(x - point.x, y - point.y) || 1;
+  return `M${point.x + (x - point.x) / distance * 12},${point.y + (y - point.y) / distance * 12} L${x},${y}`;
+}
+
+export default function NotesGraph({ nodes, edges, selected, onSelect }: {
   nodes: NoteGraphNode[];
   edges: NoteGraphEdge[];
   selected: string | null;
   onSelect: (id: string) => void;
 }) {
-  // layout() is a pure, deterministic function of the node/edge order (seeded
-  // by index, no randomness), so memoizing on the data is enough — identical
-  // input yields identical positions, no jump across refreshes.
-  const pos = useMemo(() => layout(nodes, edges), [nodes, edges]);
-  const rById = useMemo(() => new Map(nodes.map((n) => [n.id, radius(n)])), [nodes]);
+  const canvasRef = useRef<HTMLDivElement>(null);
+  const [size, setSize] = useState({ width: 900, height: 560 });
+  const [camera, setCamera] = useState({ x: 0, y: 0, scale: 1 });
+  const [overrides, setOverrides] = useState<Map<string, Point>>(() => new Map());
+  const [hovered, setHovered] = useState<string | null>(null);
+  const [dragging, setDragging] = useState(false);
+  const drag = useRef<{ pointerId: number; id: string | null; start: Point; origin: Point } | null>(null);
+  const moved = useRef(false);
 
-  if (nodes.length === 0) {
-    return <div className="text-muted-fg text-sm p-4">No notes to graph yet.</div>;
+  useEffect(() => {
+    const element = canvasRef.current;
+    if (!element) return;
+    const observer = new ResizeObserver(([entry]) => {
+      const { width, height } = entry.contentRect;
+      if (width && height) setSize({ width, height });
+    });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+
+  const layout = useMemo(() => layoutNotes(nodes, edges, size.width, size.height), [nodes, edges, size]);
+  const positions = useMemo(() => new Map([...layout].map(([id, point]) => {
+    const p = overrides.get(id) ?? point;
+    return [id, { id, x: p.x * camera.scale + camera.x, y: p.y * camera.scale + camera.y }];
+  })), [layout, overrides, camera]);
+  const active = hovered ?? selected;
+  const neighbors = useMemo(() => {
+    const ids = new Set([active]);
+    for (const edge of edges) {
+      if (edge.from === active) ids.add(edge.to);
+      if (edge.to === active) ids.add(edge.from);
+    }
+    return ids;
+  }, [active, edges]);
+  const labels = useMemo(() => new Map(placeLabels(nodes, edges, positions, size.width, size.height, active).map(label => [label.id, label])), [nodes, edges, positions, size, active]);
+  const byId = useMemo(() => new Map(nodes.map(node => [node.id, node])), [nodes]);
+  const activeLabel = active ? labels.get(active) : undefined;
+
+  const zoom = useCallback((factor: number, x = size.width / 2, y = size.height / 2) => {
+    setCamera(previous => {
+      const scale = Math.max(0.5, Math.min(3, previous.scale * factor));
+      const ratio = scale / previous.scale;
+      return { scale, x: x - (x - previous.x) * ratio, y: y - (y - previous.y) * ratio };
+    });
+  }, [size]);
+
+  useEffect(() => {
+    const element = canvasRef.current;
+    if (!element) return;
+    const onWheel = (event: WheelEvent) => {
+      event.preventDefault();
+      const rect = element.getBoundingClientRect();
+      zoom(Math.exp(-event.deltaY * 0.002), event.clientX - rect.left, event.clientY - rect.top);
+    };
+    element.addEventListener("wheel", onWheel, { passive: false });
+    return () => element.removeEventListener("wheel", onWheel);
+  }, [zoom]);
+
+  function reset() {
+    setCamera({ x: 0, y: 0, scale: 1 });
+    setOverrides(new Map());
+  }
+
+  function startDrag(event: ReactPointerEvent<SVGElement>, id: string | null) {
+    if (event.button !== 0 || !event.isPrimary) return;
+    event.stopPropagation();
+    const origin = id ? overrides.get(id) ?? layout.get(id) : camera;
+    if (!origin) return;
+    moved.current = false;
+    drag.current = { pointerId: event.pointerId, id, start: { x: event.clientX, y: event.clientY }, origin };
+    event.currentTarget.setPointerCapture(event.pointerId);
+  }
+
+  function moveDrag(event: ReactPointerEvent<SVGSVGElement>) {
+    const current = drag.current;
+    if (!current || current.pointerId !== event.pointerId) return;
+    const dx = event.clientX - current.start.x;
+    const dy = event.clientY - current.start.y;
+    if (Math.hypot(dx, dy) < 4 && !moved.current) return;
+    moved.current = true;
+    setDragging(true);
+    if (current.id) {
+      setOverrides(previous => new Map(previous).set(current.id!, {
+        x: current.origin.x + dx / camera.scale,
+        y: current.origin.y + dy / camera.scale,
+      }));
+    } else setCamera(previous => ({ ...previous, x: current.origin.x + dx, y: current.origin.y + dy }));
+  }
+
+  function stopDrag() {
+    drag.current = null;
+    setDragging(false);
   }
 
   return (
-    <div className="w-full overflow-hidden rounded-xl border border-border bg-muted/20">
-      <svg viewBox={`0 0 ${VW} ${VH}`} className="block w-full" style={{ maxHeight: "70vh" }}>
-        <defs>
-          <pattern id="ng-dots" width="24" height="24" patternUnits="userSpaceOnUse">
-            <circle cx="1.5" cy="1.5" r="1.1" className="fill-border-strong" opacity={0.16} />
-          </pattern>
-          {Object.values(EDGE_STYLE).map((st) => (
-            <marker
-              key={st.marker}
-              id={st.marker}
-              markerWidth="8"
-              markerHeight="8"
-              refX="6.5"
-              refY="3"
-              orient="auto"
-              markerUnits="userSpaceOnUse"
-            >
-              <path d="M0,0 L7,3 L0,6 Z" className={st.arrow} />
-            </marker>
+    <div className="notes-graph">
+      <div className="graph-toolbar">
+        <span><strong>{nodes.length}</strong> notes <span className="graph-count-separator">/</span> <strong>{edges.length}</strong> connections</span>
+        <div className="graph-controls" aria-label="Graph view controls">
+          <button type="button" onClick={() => zoom(1 / 1.25)} aria-label="Zoom graph out" title="Zoom out">−</button>
+          <span aria-live="polite">{Math.round(camera.scale * 100)}%</span>
+          <button type="button" onClick={() => zoom(1.25)} aria-label="Zoom graph in" title="Zoom in">+</button>
+          <button type="button" onClick={reset} aria-label="Reset graph view" title="Reset view and node positions">
+            <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.4" aria-hidden="true"><path d="M7 3H3v4m10-4h4v4M3 13v4h4m10-4v4h-4" /></svg>
+          </button>
+        </div>
+      </div>
+      <div ref={canvasRef} className={`graph-canvas ${dragging ? "is-dragging" : ""}`}>
+        {nodes.length === 0 && <p className="graph-empty">No notes to graph yet.</p>}
+        <svg width="100%" height="100%" aria-label="Notes graph" tabIndex={0}
+          onPointerDown={event => startDrag(event, null)}
+          onPointerMove={moveDrag} onPointerUp={stopDrag} onPointerCancel={stopDrag}
+          onLostPointerCapture={stopDrag}
+          onDoubleClick={event => { if (!(event.target as Element).closest("[data-node-id], [data-label-id]")) reset(); }}
+          onKeyDown={event => {
+            if (event.key === "+" || event.key === "=") { event.preventDefault(); zoom(1.25); }
+            if (event.key === "-") { event.preventDefault(); zoom(1 / 1.25); }
+            if (event.key === "0") reset();
+          }}>
+          <defs>
+            {Object.entries(EDGE_STYLE).map(([kind, style]) => (
+              <marker key={kind} id={`ng-arrow-${kind}`} markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto" markerUnits="userSpaceOnUse">
+                <path d="M0,0 L6,3 L0,6 Z" fill={style.color} />
+              </marker>
+            ))}
+          </defs>
+          <g className="graph-edges" pointerEvents="none">
+            {edges.map((edge, i) => {
+              const a = positions.get(edge.from);
+              const b = positions.get(edge.to);
+              if (!a || !b) return null;
+              const connected = active === edge.from || active === edge.to;
+              const style = EDGE_STYLE[edge.kind] ?? EDGE_STYLE.references;
+              return <path key={i} d={edgePath(a, b, radius(byId.get(edge.to)!))} fill="none"
+                stroke={connected && edge.kind === "references" ? "var(--color-accent)" : style.color}
+                strokeWidth={connected ? 1.6 : edge.kind === "references" ? 0.8 : 1.4} strokeDasharray={style.dash}
+                markerEnd={`url(#ng-arrow-${edge.kind})`} opacity={active ? connected ? 0.9 : 0.055 : edge.kind === "references" ? 0.24 : 0.85} />;
+            })}
+          </g>
+          {nodes.map(node => {
+            const p = positions.get(node.id);
+            if (!p) return null;
+            const emphasized = node.id === active;
+            return (
+              <g key={node.id} transform={`translate(${p.x},${p.y})`} data-node-id={node.id}
+                data-status={node.status ?? "unknown"} className="graph-node"
+                role="button" tabIndex={0} aria-label={node.title} aria-pressed={selected === node.id}
+                opacity={active && !neighbors.has(node.id) ? 0.25 : 1}
+                onPointerDown={event => startDrag(event, node.id)}
+                onPointerEnter={() => { if (!drag.current) setHovered(node.id); }}
+                onPointerLeave={() => setHovered(null)}
+                onFocus={() => {
+                  setHovered(node.id);
+                  if (p.x < 20 || p.x > size.width - 20 || p.y < 20 || p.y > size.height - 20) {
+                    setCamera(previous => ({ ...previous, x: previous.x + size.width / 2 - p.x, y: previous.y + size.height / 2 - p.y }));
+                  }
+                }}
+                onBlur={() => setHovered(null)}
+                onClick={() => { if (!moved.current) onSelect(node.id); }}
+                onKeyDown={event => {
+                  if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onSelect(node.id); }
+                }}>
+                <title>{node.title}</title>
+                <circle r={17} fill="transparent" />
+                {emphasized && <circle r={radius(node) + 6} className="graph-node-halo" />}
+                <circle r={radius(node) + 2.5} className="graph-node-ring" />
+                <circle r={radius(node)} className="graph-node-dot" />
+              </g>
+            );
+          })}
+          <g className="graph-labels" aria-hidden="true">
+            {[...labels.values()].filter(label => label.id !== active).map(label => (
+              <g key={label.id} data-label-id={label.id} className="graph-label-target"
+                onPointerDown={event => startDrag(event, label.id)}
+                onClick={() => { if (!moved.current) onSelect(label.id); }}>
+                <path d={labelLeader(positions.get(label.id)!, label)} className="graph-label-leader" fill="none" />
+                <foreignObject x={label.x} y={label.y} width={label.width} height={label.height} className="graph-label-box">
+                  <div className="graph-label"><span className="graph-label-text">{byId.get(label.id)?.title}</span></div>
+                </foreignObject>
+              </g>
+            ))}
+          </g>
+          {/* Paint the active title above every node without changing keyboard order. */}
+          {activeLabel && <path d={labelLeader(positions.get(activeLabel.id)!, activeLabel)} className="graph-label-leader" fill="none" />}
+          {activeLabel && <foreignObject x={activeLabel.x} y={activeLabel.y} width={activeLabel.width} height={activeLabel.height} className="graph-label-box" pointerEvents="none">
+            <div className="graph-label is-active">{byId.get(activeLabel.id)?.title}</div>
+          </foreignObject>}
+        </svg>
+        <span className="graph-hint">Drag to explore · Scroll to zoom</span>
+      </div>
+      <div className="graph-legend">
+        <div className="graph-legend-group">
+          {[["confirmed", "--graph-confirmed"], ["refuted", "--graph-refutes"], ["untested", "--graph-untested"], ["no status", "--graph-reference"]].map(([label, variable]) => (
+            <span key={label}><i className="graph-legend-dot" style={{ background: `var(${variable})` }} />{label}</span>
           ))}
-        </defs>
-
-        <rect x={0} y={0} width={VW} height={VH} fill="url(#ng-dots)" />
-
-        {/* edges (directed, curved) */}
-        {edges.map((e, i) => {
-          const a = pos.get(e.from);
-          const b = pos.get(e.to);
-          if (!a || !b) return null;
-          const st = EDGE_STYLE[e.kind] ?? EDGE_STYLE.references;
-          const dim = selected && selected !== e.from && selected !== e.to;
-          return (
-            <path
-              key={i}
-              d={edgePath(a, b, rById.get(e.from) ?? 7, rById.get(e.to) ?? 7)}
-              fill="none"
-              className={st.stroke}
-              strokeWidth={1.6}
-              strokeLinecap="round"
-              strokeDasharray={st.dash}
-              markerEnd={`url(#${st.marker})`}
-              opacity={dim ? 0.1 : 0.85}
-            />
-          );
-        })}
-
-        {/* nodes */}
-        {nodes.map((n) => {
-          const p = pos.get(n.id);
-          if (!p) return null;
-          const r = rById.get(n.id) ?? 7;
-          const isSel = selected === n.id;
-          const dim = selected && !isSel;
-          const label = n.title.length > 26 ? n.title.slice(0, 25) + "…" : n.title;
-          const fill = STATUS_FILL[n.status ?? ""] ?? "fill-border-strong";
-          return (
-            <g
-              key={n.id}
-              transform={`translate(${p.x},${p.y})`}
-              className="cursor-pointer"
-              opacity={dim ? 0.28 : 1}
-              onClick={() => onSelect(n.id)}
-            >
-              {isSel && (
-                <circle r={r + 6} className="fill-none stroke-foreground" strokeWidth={1.5} opacity={0.45} />
-              )}
-              {/* background halo so the node reads cleanly over edges + dots */}
-              <circle r={r + 3} className="fill-background" />
-              <circle r={r} className={fill} />
-              <text
-                x={r + 9}
-                y={4}
-                className="fill-foreground stroke-background font-body"
-                strokeWidth={3.5}
-                style={{ fontSize: 12, paintOrder: "stroke", fontWeight: isSel ? 600 : 500 }}
-              >
-                {label}
-              </text>
-            </g>
-          );
-        })}
-      </svg>
-
-      {/* legend footer */}
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-border bg-background px-4 py-2.5 font-mono text-[10px] tracking-wide text-muted-fg">
-        <LegendDot cls="fill-green-500" label="confirmed" />
-        <LegendDot cls="fill-red-500" label="refuted" />
-        <LegendDot cls="fill-blue-500" label="untested" />
-        <LegendDot cls="fill-border-strong" label="no status" />
-        <span className="opacity-30">|</span>
-        <LegendEdge cls="amber-500" dash="6 4" label="supersedes" />
-        <LegendEdge cls="red-500" label="refutes" />
-        <LegendEdge cls="border-strong" dash="1 4" label="references" />
-        <span className="ml-auto opacity-70">● size = confidence · → direction</span>
+        </div>
+        <div className="graph-legend-group">
+          {Object.entries(EDGE_STYLE).map(([kind, style]) => <span key={kind}>
+            <svg width="23" height="8" aria-hidden="true"><path d="M0 4h18m-4-3 5 3-5 3" fill="none" stroke={style.color} strokeWidth="1.3" strokeDasharray={style.dash} /></svg>{kind}
+          </span>)}
+        </div>
+        <span className="graph-legend-meta">Size = confidence · Arrow = direction</span>
       </div>
     </div>
-  );
-}
-
-function LegendDot({ cls, label }: { cls: string; label: string }) {
-  return (
-    <span className="flex items-center gap-1.5">
-      <svg width={10} height={10} className="inline-block">
-        <circle cx={5} cy={5} r={4} className={cls} />
-      </svg>
-      {label}
-    </span>
-  );
-}
-
-function LegendEdge({ cls, dash, label }: { cls: string; dash?: string; label: string }) {
-  return (
-    <span className="flex items-center gap-1.5">
-      <svg width={20} height={6} className="inline-block">
-        <line x1={0} y1={3} x2={14} y2={3} className={`stroke-${cls}`} strokeWidth={1.6} strokeDasharray={dash} />
-        <path d="M14,0 L20,3 L14,6 Z" className={`fill-${cls}`} />
-      </svg>
-      {label}
-    </span>
   );
 }

@@ -61,19 +61,17 @@ export default function Knowledge() {
   return (
     <>
       {/* LEFT COLUMN — Notes */}
-      <div className="overflow-y-auto border-r border-border p-5">
-        <div className="flex items-center justify-between mb-3">
-          <p className="font-mono text-[10px] tracking-widest uppercase text-muted-fg">
+      <div className={`workspace-panel knowledge-main ${view === "graph" ? "knowledge-graph-view" : ""}`}>
+        <div className="section-heading">
+          <p className="section-title">
             Notes ({notes.length})
           </p>
-          <div className="flex font-mono text-[10px] uppercase tracking-wider border border-border rounded-md overflow-hidden">
+          <div className="segment-control">
             {(["list", "graph"] as View[]).map((v) => (
               <button
                 key={v}
                 onClick={() => setView(v)}
-                className={`px-2.5 py-1 transition-colors ${
-                  view === v ? "bg-foreground text-background" : "text-muted-fg hover:bg-muted"
-                }`}
+                aria-pressed={view === v}
               >
                 {v}
               </button>
@@ -98,7 +96,7 @@ export default function Knowledge() {
               onSelect={(id) => setSelectedId((cur) => (cur === id ? null : id))}
             />
             {selectedNote ? (
-              <div className="mt-3 border border-border rounded-xl p-4 bg-background">
+              <div className="selected-note">
                 {(selectedNote.status || typeof selectedNote.confidence === "number") && (
                   <div className="flex items-center gap-3 mb-2">
                     {selectedNote.status && <StatusChip status={selectedNote.status} />}
@@ -107,20 +105,20 @@ export default function Knowledge() {
                     )}
                   </div>
                 )}
-                <p className="font-display text-[15px] font-semibold leading-snug">
+                <p className="note-title">
                   {selectedNote.title}
                 </p>
                 <p className="font-mono text-[10px] text-muted-fg mt-0.5 mb-3">
                   {selectedNote.relative_path}
                 </p>
                 <NoteMeta note={selectedNote} />
-                <div className="border-l-2 border-border pl-3 font-body text-[13px] leading-relaxed whitespace-pre-wrap text-muted-fg">
+                <div className="note-body">
                   {selectedNote.body}
                 </div>
               </div>
             ) : (
               <p className="mt-3 font-body text-[12px] text-muted-fg">
-                Click a node to read the note. Edges show how notes relate; node color is the
+                Hover to highlight connections. Click a node to read the note; node color is the
                 claim status.
               </p>
             )}
@@ -129,7 +127,7 @@ export default function Knowledge() {
           <div className="space-y-4">
             {groupedNotes.map(([category, catNotes]) => (
               <div key={category}>
-                <p className="font-mono text-[10px] tracking-widest uppercase text-muted-fg mb-2">
+                <p className="section-title mb-2">
                   {CATEGORY_LABELS[category] || category} ({catNotes.length})
                 </p>
                 <div className="border border-border rounded-xl overflow-hidden">
@@ -139,19 +137,19 @@ export default function Knowledge() {
                         onClick={() =>
                           setExpandedNote(expandedNote === note.index ? null : note.index)
                         }
-                        className="w-full text-left py-3.5 px-4 hover:bg-muted/50 transition-colors duration-100 flex items-start gap-3"
+                        className="note-row w-full text-left py-4 px-4 flex items-start gap-3"
                       >
                         <div className="mt-1 shrink-0">
                           <StatusDot status={note.status} />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="font-mono text-[10px] text-muted-fg mb-0.5">
+                          <p className="font-mono text-[11px] text-muted-fg mb-1 break-all">
                             {note.date}
                             {note.relative_path && (
                               <span className="ml-2 opacity-60">{note.relative_path}</span>
                             )}
                           </p>
-                          <p className="font-display text-[14px] font-semibold leading-snug">
+                          <p className="note-title">
                             {note.title}
                           </p>
                         </div>
@@ -164,7 +162,7 @@ export default function Knowledge() {
                         <div className="pb-4 pl-10 pr-4">
                           <div className="border-l-2 border-border pl-4">
                             <NoteMeta note={note} />
-                            <div className="font-body text-[13px] leading-relaxed whitespace-pre-wrap text-muted-fg">
+                            <div className="note-body">
                               {note.body}
                             </div>
                           </div>
@@ -180,8 +178,8 @@ export default function Knowledge() {
       </div>
 
       {/* RIGHT COLUMN — Skills */}
-      <div className="overflow-y-auto p-5">
-        <p className="font-mono text-[10px] tracking-widest uppercase text-muted-fg mb-3">
+      <div className="workspace-panel knowledge-skills">
+        <p className="section-title mb-3">
           Skills ({skills.length})
         </p>
 
@@ -198,7 +196,7 @@ export default function Knowledge() {
             {skills.map((skill) => (
               <div
                 key={skill.name}
-                className="p-4 border border-border rounded-lg hover:bg-muted/50 transition-colors duration-100"
+                className="skill-card"
               >
                 <p className="font-display text-[14px] font-semibold mb-1">{skill.name}</p>
                 {skill.description && (
@@ -258,10 +256,10 @@ function NoteMeta({ note }: { note: Note }) {
   const fm = note.frontmatter;
   if (!fm || Object.keys(fm).length === 0) return null;
   return (
-    <dl className="mb-3 grid grid-cols-[max-content_1fr] gap-x-3 gap-y-1 rounded-lg border border-border bg-muted/40 px-3 py-2 font-mono text-[11px] leading-relaxed">
+    <dl className="note-meta">
       {Object.entries(fm).map(([key, value]) => (
         <div key={key} className="contents">
-          <dt className="text-muted-fg uppercase tracking-wider text-[10px] pt-0.5 whitespace-nowrap">
+          <dt className="pt-0.5">
             {key.replace(/_/g, " ")}
           </dt>
           <dd className="min-w-0">

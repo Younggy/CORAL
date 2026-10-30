@@ -102,20 +102,20 @@ export default function ScoreChart({
   const [improvedOnly, setImprovedOnly] = useState(false);
   const chartColors = theme === "dark"
     ? {
-        foreground: "#eceeec",
-        background: "#0e1011",
-        muted: "#a6acae",
-        border: "#292d2f",
-        borderStrong: "#454b4e",
-        fill: "rgba(236, 238, 236, 0.08)",
+        foreground: "#e5edf4",
+        background: "#182631",
+        muted: "#a6bacb",
+        border: "#304655",
+        borderStrong: "#607c8f",
+        fill: "rgba(153, 198, 231, 0.08)",
       }
     : {
-        foreground: "#1a1d1e",
-        background: "#eff0f0",
-        muted: "#727879",
-        border: "#d0d3d5",
-        borderStrong: "#a0a3a5",
-        fill: "rgba(26, 29, 30, 0.08)",
+        foreground: "#255f85",
+        background: "#ffffff",
+        muted: "#586c7d",
+        border: "#e7edf2",
+        borderStrong: "#a4b5c3",
+        fill: "rgba(37, 95, 133, 0.06)",
       };
 
   // Filter and sort
@@ -260,7 +260,7 @@ export default function ScoreChart({
         },
         grid: { color: chartColors.border, lineWidth: 1 },
         ticks: {
-          font: { family: "'JetBrains Mono', monospace", size: 10 },
+          font: { family: "'SFMono-Regular', Consolas, monospace", size: 10 },
           color: chartColors.muted,
           maxRotation: 0,
         },
@@ -269,7 +269,7 @@ export default function ScoreChart({
         type: "category" as const,
         grid: { color: chartColors.border, lineWidth: 1 },
         ticks: {
-          font: { family: "'JetBrains Mono', monospace", size: 10 },
+          font: { family: "'SFMono-Regular', Consolas, monospace", size: 10 },
           color: chartColors.muted,
         },
       };
@@ -282,15 +282,15 @@ export default function ScoreChart({
   const options: any = {
     responsive: true,
     maintainAspectRatio: false,
-    ...(animationDuration !== undefined && {
-      animation: { duration: animationDuration },
-    }),
+    animation: {
+      duration: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : animationDuration ?? 500,
+    },
     plugins: {
       legend: {
         display: true,
         position: "top" as const,
         labels: {
-          font: { family: "'JetBrains Mono', monospace", size: 11 },
+          font: { family: "'SFMono-Regular', Consolas, monospace", size: 11 },
           boxWidth: 20,
           boxHeight: 2,
           color: chartColors.foreground,
@@ -300,8 +300,8 @@ export default function ScoreChart({
         backgroundColor: chartColors.foreground,
         titleColor: chartColors.background,
         bodyColor: chartColors.background,
-        titleFont: { family: "'JetBrains Mono', monospace", size: 11 },
-        bodyFont: { family: "'JetBrains Mono', monospace", size: 11 },
+        titleFont: { family: "'SFMono-Regular', Consolas, monospace", size: 11 },
+        bodyFont: { family: "'SFMono-Regular', Consolas, monospace", size: 11 },
         callbacks: {
           label: (ctx: {
             dataset: { label?: string };
@@ -332,7 +332,7 @@ export default function ScoreChart({
         type: effectiveScale as "linear" | "logarithmic",
         grid: { color: chartColors.border, lineWidth: 1 },
         ticks: {
-          font: { family: "'JetBrains Mono', monospace", size: 10 },
+          font: { family: "'SFMono-Regular', Consolas, monospace", size: 10 },
           color: chartColors.muted,
         },
         ...(yMin !== undefined && !isNaN(yMin) ? { min: yMin } : {}),
@@ -359,7 +359,7 @@ export default function ScoreChart({
   const statsP95 = percentile(scores, 0.95);
 
   const btnClass = (active: boolean) =>
-    `px-2 py-0.5 font-mono text-[10px] tracking-wider uppercase border border-border rounded-sm transition-colors duration-100 ${
+    `px-2 py-0.5 font-body text-xs border border-border rounded-sm transition-colors duration-100 ${
       active
         ? "bg-foreground text-background"
         : "bg-background text-foreground hover:bg-muted"
@@ -373,7 +373,7 @@ export default function ScoreChart({
       {/* Row 1: Core controls */}
       <div className={`flex items-center gap-4 ${expanded ? "mb-2" : "mb-4 pr-16"} flex-wrap`}>
         <div className="flex items-center gap-1">
-          <span className="font-mono text-[10px] text-muted-fg uppercase tracking-widest mr-2">
+          <span className="font-body text-[11px] text-muted-fg mr-2">
             Scale
           </span>
           <button
@@ -391,7 +391,7 @@ export default function ScoreChart({
           </button>
         </div>
         <div className="flex items-center gap-1">
-          <span className="font-mono text-[10px] text-muted-fg uppercase tracking-widest mr-2">
+          <span className="font-body text-[11px] text-muted-fg mr-2">
             X-Axis
           </span>
           <button
@@ -408,7 +408,7 @@ export default function ScoreChart({
           </button>
         </div>
         <div className="flex items-center gap-1">
-          <span className="font-mono text-[10px] text-muted-fg uppercase tracking-widest mr-2">
+          <span className="font-body text-[11px] text-muted-fg mr-2">
             View
           </span>
           <button
@@ -432,7 +432,7 @@ export default function ScoreChart({
         </div>
         {agents.length > 1 && (
           <div className="flex items-center gap-1 shrink-0">
-            <span className="font-mono text-[10px] text-muted-fg uppercase tracking-widest mr-2 shrink-0">
+            <span className="font-body text-[11px] text-muted-fg mr-2 shrink-0">
               Agents
             </span>
             <button
@@ -474,7 +474,7 @@ export default function ScoreChart({
           </div>
         )}
         <div className="flex items-center gap-1">
-          <span className="font-mono text-[10px] text-muted-fg uppercase tracking-widest mr-1">
+          <span className="font-body text-[11px] text-muted-fg mr-1">
             Range
           </span>
           <input
@@ -504,7 +504,7 @@ export default function ScoreChart({
         <div className="flex items-center gap-4 mb-2 flex-wrap">
           {/* Filter toggles */}
           <div className="flex items-center gap-1">
-            <span className="font-mono text-[10px] text-muted-fg uppercase tracking-widest mr-2">
+            <span className="font-body text-[11px] text-muted-fg mr-2">
               Filter
             </span>
             <button
@@ -523,7 +523,7 @@ export default function ScoreChart({
 
           {/* Y-Range with percentile presets */}
           <div className="flex items-center gap-1">
-            <span className="font-mono text-[10px] text-muted-fg uppercase tracking-widest mr-1">
+            <span className="font-body text-[11px] text-muted-fg mr-1">
               Y-Range
             </span>
             <input
@@ -551,7 +551,7 @@ export default function ScoreChart({
 
           {/* Percentile presets */}
           <div className="flex items-center gap-1">
-            <span className="font-mono text-[10px] text-muted-fg uppercase tracking-widest mr-1">
+            <span className="font-body text-[11px] text-muted-fg mr-1">
               Clip
             </span>
             <button className={btnClass(false)} onClick={() => setPercentileMax(0.5)}>

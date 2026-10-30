@@ -73,7 +73,7 @@ export default function AttemptRow({ attempt: a, rank, expanded, onToggle, highl
               {/* Feedback */}
               {a.feedback && (
                 <div>
-                  <p className="font-mono text-[10px] tracking-widest uppercase text-muted-fg mb-2">
+                  <p className="section-title mb-2">
                     Feedback
                   </p>
                   <div className="border border-border rounded-lg p-4 bg-background">

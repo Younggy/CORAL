@@ -80,18 +80,20 @@ export default function RunSelector() {
   };
 
   return (
-    <div className="relative" ref={ref}>
+    <div className="run-selector relative" ref={ref}>
       <button
         onClick={() => setOpen(!open)}
-        title={currentRoot?.label}
+        title={`${currentRoot?.label ?? ""} / ${data.current.task}`}
+        aria-expanded={open}
+        aria-label="Select task and run"
         className="flex items-center gap-1.5 px-2 py-1 rounded-md hover:bg-muted transition-colors duration-100"
         disabled={switching}
       >
-        <span className="font-body text-[13px] text-muted-fg truncate max-w-[160px]">
+        <span className="font-body text-[14px] font-semibold text-foreground truncate max-w-[min(28vw,280px)]">
           {data.current.task}
         </span>
         <span className="text-border-strong">/</span>
-        <span className="font-mono text-[11px] text-muted-fg">
+        <span className="font-mono text-[11px] text-muted-fg whitespace-nowrap">
           {formatTimestamp(data.current.run)}
         </span>
         <svg
@@ -107,9 +109,9 @@ export default function RunSelector() {
 
       {open && (
         <div
-          className={`absolute top-full left-0 mt-1 z-50 bg-background border border-border rounded-lg shadow-lg overflow-hidden ${
+          className={`run-picker absolute top-full left-0 mt-3 z-50 bg-background border border-border rounded-lg shadow-lg overflow-hidden ${
             hasMultipleRoots
-              ? "w-[760px] max-w-[calc(100vw-3rem)]"
+              ? "w-[760px]"
               : hasMultipleTasks
                 ? "w-[520px]"
                 : "w-[340px]"
